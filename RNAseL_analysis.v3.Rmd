@@ -1,0 +1,735 @@
+---
+title: "TK_61: Rerun of RNAseq and RIBOseq datasets from samples induced with 2-5A/polyI:C"
+author: "Hernan Lorenzi"
+date: "7/17/2023"
+output:
+  html_document:
+    df_print: paged
+    theme:
+      bootswatch: flatly
+---
+
+<style type="text/css">
+
+h1.title {
+  font-size: 38px;
+  text-align: center;
+}
+h4.author {
+  font-size: 24px;
+  text-align: center;
+}
+h4.date {
+  font-size: 24px;
+  text-align: center;
+}
+</style>
+
+
+**PI:** Nick Guydosh\
+**Point of Contact:** Agnes Karasik\
+**Contact email:** agnes.karasik@nih.gov\
+
+**Summary:** The goal of this project is to recalculate Log2FC for RNAseq and RIBOseq datasets from samples induced with 2-5A/polyI:C, using read-count tables based on exon or CDS features.
+
+### Results
+
+[Link to differential expression tables](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE?csf=1&web=1&e=eXNepC)
+
+|File|Contrast|Feature|Data source|
+|:---|:----------|:------|:----------|
+|DE_wtIC_vs_wtNone_cds.txt|WT - pIC vs Control | CDS | RNAseq|
+|DE_koIC_vs_koNone_cds.txt|KO - pIC vs Control | CDS | RNAseq|
+|DE_wt25A_vs_wtNone_cds.txt|WT - 2-5A vs Control | CDS | RNAseq|
+|DE_ko25A_vs_koNone_cds.txt|KO - 2-5A vs Control | CDS | RNAseq|
+|DE_wtIC_vs_wtNone_exon.txt|WT - pIC vs Control | Exon | RNAseq|
+|DE_koIC_vs_koNone_exon.txt|KO - pIC vs Control | Exon | RNAseq|
+|DE_wt25A_vs_wtNone_exon.txt|WT - 2-5A vs Control | Exon | RNAseq|
+|DE_ko25A_vs_koNone_exon.txt|KO - 2-5A vs Control | Exon | RNAseq|
+|DE_wtIC_vs_wtNone_RS.txt|WT - pIC vs Control | CDS | RIBOseq|
+|DE_koIC_vs_koNone_RS.txt|KO - pIC vs Control | CDS | RIBOseq|
+|DE_wt25A_vs_wtNone_RS.txt|WT - 2-5A vs Control | CDS | RIBOseq|
+|DE_ko25A_vs_koNone_RS.txt|KO - 2-5A vs Control | CDS | RIBOseq|
+
+[Link to exploratory plots](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/Plots?csf=1&web=1&e=StjukZ)
+
+|File|Contrast|Feature|Data source|
+|:---|:----------|:------|:----------|
+|barplot_read_counts_cds.pdf|Read counts per sample | CDS| RNAseq|
+|pca_dataset_1_Induc_gt_cds.pdf|PCA colored by genotype| CDS | RNAseq| 
+|pca_dataset_1_Induc_read_counts_cds.pdf|PCA colored by sequencing depth| CDS | RNAseq|
+|barplot_read_counts_exon.pdf|Read counts per sample | Exon| RNAseq|
+|pca_dataset_1_Induc_gt_exon.pdf|PCA colored by genotype| Exon | RNAseq|
+|pca_dataset_1_Induc_read_counts_exon.pdf|PCA colored by sequencing depth| Exon | RNAseq|
+|barplot_read_counts_RS.pdf|Read counts per sample | CDS| RIBOseq|
+|pca_dataset_1_Induc_gt_RS.pdf|PCA colored by genotype| CDS | RIBOseq|
+|pca_dataset_1_Induc_read_counts_RS.pdf|PCA colored by sequencing depth| CDS | RIBOseq|
+
+### R code
+
+```{r include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning=FALSE, error=FALSE)
+```
+
+### Load libraries
+```{r load libraries, message=FALSE}
+suppressMessages(library("org.Hs.eg.db"))
+suppressMessages(library("pheatmap"))
+#suppressMessages(library("EnhancedVolcano"))
+suppressMessages(library("ggplot2"))
+suppressMessages(library("ggpubr"))
+suppressMessages(library("DESeq2"))
+suppressMessages(library("stringr"))
+suppressMessages(library("biomaRt"))
+#suppressMessages(library("tidyverse"))
+suppressMessages(library("pcaExplorer"))
+#suppressMessages(library("clusterProfiler"))
+suppressMessages(library("ggsci"))
+suppressMessages(library("viridis"))
+#suppressMessages(library("ggrepel"))
+suppressMessages(library("RColorBrewer"))
+#suppressMessages(library("msigdbr"))
+suppressMessages(library("cowplot"))
+#suppressMessages(library("enrichplot"))
+#suppressMessages(library("ggupset"))
+#suppressMessages(library("ggraph"))
+```
+
+### Upload required functions
+```{r aux functions}
+
+# Load auxyliary functions
+source(file = "./01_aux_rnaseq_functions.R")
+
+# Load enrichment functions
+source(file = "./02_Gene_enrichment_functions.R")
+
+```
+
+###########################################
+## CDS counts
+###########################################
+
+### Load RNAseq CDS data
+```{r loading cds data, message=FALSE, warning=FALSE}
+all <- read.delim2("./data/cdsrna_round.csv", sep = ",", header = TRUE, row.names = 1, comment.char = c("#"))
+
+# Keep table with Ensemble IDs and gene Symbols
+gene_symbols <- replace_gene_acc_by_symbol_ids(rownames(all))
+ensembl_to_symbol <- as.data.frame(cbind("Ensembl_ID" = rownames(all), "gene_name" = gene_symbols), row.names = 1)
+
+# Load metadata
+metadata <- read.delim2("./data/Metadata.txt", sep = "\t", row.names = 1, header = T)
+
+# keep only samples that are present in all
+metadata <- metadata[colnames(all),]
+
+# Add total read counts and sample id columns to metadata
+metadata <- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
+
+#Remove all zero rows
+all <- remove_all_zero_rows(all, min_total_count = 0)
+
+```
+
+### Analysis of expression data using DESeq2 - CDS
+```{r deseq2 for cds}
+# Convert metadata to factors
+for (variable in c("Sequencing_pool", "Read_length","Machine", "Genotype","Group",	"Colection_time",	"X25A",	"PolyIC",	"Triptolyde",	"CHX",	"Puromycin",	"Dataset",	"Inducer",	"Treatment" )){
+  metadata[,variable] <- as.factor(metadata[,variable])  
+}
+
+# Subset metadata and count tables by Data
+meta_one_cds <- subset(metadata, metadata$Dataset == "one")
+all_one_cds <- all[, rownames(meta_one_cds)]
+```
+
+I created a new column in metadata (Group_gt_ind) that concatenates the info from  Genotype and Inducer columns so coefficients include genotype info.
+
+```{r}
+
+dir.create(path = "./Plots", showWarnings = F)
+dir.create(path = "./DE", showWarnings = F)
+
+meta_one_cds$Group_gt_ind <- factor(paste0(meta_one_cds$Genotype, meta_one_cds$Inducer))
+```
+
+I also added a new column (Read_depth) to tag samples with High or Low sequencing depth so this factor can be controlled for in the design formula.
+
+The design formula use in DESeq2 is the following:
+  
+    design = ~ Read_depth + Group_gt_ind
+    
+```{r exploratory analysis cds}
+# add new factors (Group_gt_ind and Read_depth (high > 3M reads / Low < 3M reads) for CDS based counts)
+meta_one_cds$Read_depth <- 'High'
+meta_one_cds[meta_one_cds$Read_counts < 3e6,]$Read_depth <- 'Low'
+meta_one_cds$Read_depth <- as.factor(meta_one_cds$Read_depth)
+
+# Adding read_depth in design to control for read_depth
+dds.one.cds <- DESeqDataSetFromMatrix(countData = all_one_cds, 
+                              colData = meta_one_cds,  
+                              design = ~ Read_depth + Group_gt_ind)
+
+```
+
+### Exploratory analysis with DESeq object- CDS
+```{r}
+# Plot total reads per sample using barchar
+p <- ggbarplot(data = meta_one_cds, 
+          x = "Sample_id", 
+          y = "Read_counts",
+          x.text.angle = 90,
+          fill = "Inducer", 
+          title = "Total read counts", 
+          ylab = "Read counts",
+          sort.by.groups = TRUE,
+          palette = "jco",
+          sort.val = "asc", 
+          facet.by = "Genotype")
+ggsave("Plots/barplot_read_counts_cds.pdf", plot = p)
+p
+
+# Normalize counts
+rlog.one <- rlog(dds.one.cds, blind=FALSE)
+
+# Keep genes with at least 20 reads total across samples
+keep <- rowSums(counts(dds.one.cds)) >= 20
+dds.one.cds <- dds.one.cds[keep,]
+
+# Calculate distances between samples
+sampleDists <- dist(t(assay(rlog.one)))
+
+# Plot inter-sample distances
+old.par <- par(no.readonly=T)
+
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(rlog.one$Sequencing_pool, rlog.one$Genotype, rlog.one$Inducer, sep="-")
+colnames(sampleDistMatrix) <- NULL
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+
+# PCA
+my_top_genes = 540
+
+pcaData <- plotPCA(rlog.one, intgroup=c("Genotype", "Inducer"), returnData=TRUE, ntop = my_top_genes)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+y.coords = c(min(pcaData$PC1, pcaData$PC2), max(pcaData$PC1, pcaData$PC2))
+x.coords = y.coords
+p1 <- ggplot(pcaData, aes(PC1, PC2, color=Genotype, shape=Inducer)) +
+  geom_point(size=3) + scale_color_lancet() + 
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed(ratio = (max(pcaData$PC1)-min(pcaData$PC1))/(max(pcaData$PC2)-min(pcaData$PC2))) 
+
+ggsave("Plots/pca_dataset_1_Induc_gt_cds.pdf", plot = p1)
+p1
+
+pcaData <- plotPCA(rlog.one, intgroup=c("Read_counts", "Inducer"), returnData=TRUE, ntop = my_top_genes)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+p2 <- ggplot(pcaData, aes(PC1, PC2, color=Read_counts, shape=Inducer)) +
+  geom_point(size=3) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed(ratio = (max(pcaData$PC1)-min(pcaData$PC1))/(max(pcaData$PC2)-min(pcaData$PC2))) + scale_color_gradient2(high = "blue", mid = "yellow")
+
+ggsave("Plots/pca_dataset_1_Induc_read_counts_cds.pdf", plot = p2)
+p2
+```
+
+PCA plots indicate that samples separated on PC1 mostly by sequencing depth, within treatments and genotypes. This implies that sequencing depth has to be controlled for by including this factor in the design formula.
+
+### Filtering out poorly-expressed genes (less than 20 reads across all samples) - CDS 
+```{r}
+
+# Keep genes with at least 10 reads total across samples
+keep <- rowSums(counts(dds.one.cds)) >= 20
+dds.one.cds <- dds.one.cds[keep,]
+```
+
+### Spliting DESeq object based on genotype - CDS
+```{r}
+dds.one.cds.wt <- dds.one.cds[ , dds.one.cds$Genotype == "WT"]
+dds.one.cds.wt$Genotype <- droplevels( dds.one.cds.wt$Genotype)
+dds.one.cds.wt$Group_gt_ind <- droplevels( dds.one.cds.wt$Group_gt_ind)
+dds.one.cds.wt$Group <- droplevels( dds.one.cds.wt$Group)
+
+dds.one.cds.ko <- dds.one.cds[ , dds.one.cds$Genotype == "RNaseL_KO"]
+dds.one.cds.ko$Genotype <- droplevels( dds.one.cds.ko$Genotype)
+dds.one.cds.ko$Group_gt_ind <- droplevels( dds.one.cds.ko$Group_gt_ind)
+dds.one.cds.ko$Group <- droplevels( dds.one.cds.ko$Group)
+
+```
+
+### Calculate differential expression for WT - CDS
+```{r}
+
+# Calculate DE for WT samples
+dds.one.cds.wt$Group_gt_ind <- relevel(dds.one.cds.wt$Group_gt_ind, "WTNone")
+dds.one.cds.wt <- DESeq(dds.one.cds.wt)
+resultsNames(dds.one.cds.wt)
+
+
+# Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
+res_wtIC_vs_wtNone <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
+res_wt25A_vs_wtNone <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+
+summary(res_wtIC_vs_wtNone, alpha = 0.05)
+summary(res_wt25A_vs_wtNone, alpha = 0.05)
+```
+
+### Calculate DE for KO samples - CDS
+```{r}
+dds.one.cds.ko$Group_gt_ind <- relevel(dds.one.cds.ko$Group_gt_ind, "RNaseL_KONone")
+# Changing design formula given that there is no KO sample with Low read counts, otherwise you get an error message 
+design(dds.one.cds.ko) <- ~Group_gt_ind 
+dds.one.cds.ko <- DESeq(dds.one.cds.ko)
+resultsNames(dds.one.cds.ko)
+
+res_koIC_vs_koNone <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
+res_ko25A_vs_koNone <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+
+summary(res_koIC_vs_koNone, alpha = 0.05)
+summary(res_ko25A_vs_koNone, alpha = 0.05)
+```
+
+### Write DE tables to file - CDS
+```{r}
+# Define function for processing and saving result tables
+sort_and_write_res_table <- function(result_table, file_name){
+  # Sort genes by (padj)
+  result_table_sorted <- result_table[order(result_table$padj, decreasing = FALSE),]
+  # Add gene symbols
+  gene_list <- rownames(result_table_sorted)
+  symbol_list <- ensembl_to_symbol$gene_name[match(gene_list, ensembl_to_symbol$Ensembl_ID)]
+  df <-as.data.frame(cbind(result_table_sorted, Gene_name = symbol_list))
+  
+  # Write sorted table to file
+  write.table(df, file = paste0("./DE/",file_name,".txt"), 
+            sep = "\t", col.names=NA)
+  return(result_table_sorted)
+}
+
+# Sort results by Log2FC
+res_wtIC_vs_wtNone.logfc_sorted <- sort_and_write_res_table(res_wtIC_vs_wtNone, "DE_wtIC_vs_wtNone_cds")
+res_koIC_vs_koNone.logfc_sorted <- sort_and_write_res_table(res_koIC_vs_koNone, "DE_koIC_vs_koNone_cds")
+res_wt25A_vs_wtNone.logfc_sorted <- sort_and_write_res_table(res_wt25A_vs_wtNone, "DE_wt25A_vs_wtNone_cds")
+res_ko25A_vs_koNone.logfc_sorted <- sort_and_write_res_table(res_ko25A_vs_koNone, "DE_ko25A_vs_koNone_cds")
+
+# Save sorted files as a list
+DE_results = list()
+DE_results[["wtIC_vs_wtNone_cds"]]  <- res_wtIC_vs_wtNone.logfc_sorted
+DE_results[["koIC_vs_koNone_cds"]] <- res_koIC_vs_koNone.logfc_sorted
+DE_results[["wt25A_vs_wtNone_cds"]] <- res_wt25A_vs_wtNone.logfc_sorted
+DE_results[["ko25A_vs_koNone_cds"]] <- res_ko25A_vs_koNone.logfc_sorted
+```
+
+
+#########################################################################
+## Exonic counts
+#########################################################################
+
+### Load data - exons
+```{r Loading data for exon counts}
+all <- read.delim2("./data/read_counts_exonic_RNaseL.csv", sep = ",", header = TRUE, row.names = 1, comment.char = c("#"))
+
+# Make sure read counts are numeric and rounded to 0 decimals
+all.tmp <- as.data.frame(lapply(all, function(x){ round(as.numeric(x), digits = 0)} ))
+rownames(all.tmp) <- rownames(all)
+all <- all.tmp
+
+# Keep table with Ensemble IDs and gene Symbols
+gene_symbols <- replace_gene_acc_by_symbol_ids(rownames(all))
+ensembl_to_symbol <- as.data.frame(cbind("Ensembl_ID" = rownames(all), "gene_name" = gene_symbols), row.names = 1)
+
+# Load metadata
+metadata <- read.delim2("./data/Metadata.txt", sep = "\t", row.names = 1, header = T)
+
+# keep only samples that are present in all
+metadata <- metadata[colnames(all),]
+
+# Add total read counts and sample id columns to metadata
+metadata <- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
+
+#Remove all zero rows
+all <- remove_all_zero_rows(all, min_total_count = 0)
+
+```
+
+### Analysis of expression data using DESeq2 - exons
+```{r}
+# Convert metadata to factors
+for (variable in c("Sequencing_pool", "Read_length","Machine", "Genotype","Group",	"Colection_time",	"X25A",	"PolyIC",	"Triptolyde",	"CHX",	"Puromycin",	"Dataset",	"Inducer",	"Treatment" )){
+  metadata[,variable] <- as.factor(metadata[,variable])  
+}
+
+# Subset metadata and count tables by Data
+meta_one_exon <- subset(metadata, metadata$Dataset == "one")
+all_one_exon <- all[, rownames(meta_one_exon)]
+```
+
+I created a new column in metadata (Group_gt_ind) that concatenates the info from Genotype and Inducer columns so coefficients include genotype info.
+
+I also added a new column (Read_depth) to tag samples with High or Low sequencing depth so this factor can be controlled for in the design formula.
+
+The design formula use in DESeq2 is the following:
+  
+    design = ~ Read_depth + Group_gt_ind
+
+```{r}
+dir.create(path = "./Plots", showWarnings = F)
+dir.create(path = "./DE", showWarnings = F)
+
+meta_one_exon$Group_gt_ind <- factor(paste0(meta_one_exon$Genotype, meta_one_exon$Inducer))
+
+# add new factors (Group_gt_ind and Read_depth (high > 10M reads / Low < 10M reads))
+meta_one_exon$Read_depth <- 'High'
+meta_one_exon[meta_one_exon$Read_counts < 10e6,]$Read_depth <- 'Low'
+meta_one_exon$Read_depth <- as.factor(meta_one_exon$Read_depth)
+
+# Adding read_depth in design to control for read_depth
+dds.one.exon <- DESeqDataSetFromMatrix(countData = all_one_exon, 
+                              colData = meta_one_exon,  
+                              design = ~ Read_depth + Group_gt_ind)
+```
+
+### Exploratory analysis with DESeq object- exons
+```{r}
+# Plot total reads per sample using barchar
+p <- ggbarplot(data = meta_one_exon, 
+          x = "Sample_id", 
+          y = "Read_counts",
+          x.text.angle = 90,
+          fill = "Inducer", 
+          title = "Total read counts", 
+          ylab = "Read counts",
+          sort.by.groups = TRUE,
+          palette = "jco",
+          sort.val = "asc", 
+          facet.by = "Genotype")
+ggsave("Plots/barplot_read_counts_exon.pdf", plot = p)
+p
+
+
+# Normalize counts
+rlog.one <- rlog(dds.one.exon, blind=FALSE)
+
+# Keep genes with at least 20 reads total across samples
+keep <- rowSums(counts(dds.one.exon)) >= 20
+dds.one.exon <- dds.one.exon[keep,]
+
+# Calculate distances between samples
+sampleDists <- dist(t(assay(rlog.one)))
+
+# Plot inter-sample distances
+old.par <- par(no.readonly=T)
+
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(rlog.one$Sequencing_pool, rlog.one$Genotype, rlog.one$Inducer, sep="-")
+colnames(sampleDistMatrix) <- NULL
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+
+# PCA
+my_top_genes = 540
+
+pcaData <- plotPCA(rlog.one, intgroup=c("Genotype", "Inducer"), returnData=TRUE, ntop = my_top_genes)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+y.coords = c(min(pcaData$PC1, pcaData$PC2), max(pcaData$PC1, pcaData$PC2))
+x.coords = y.coords
+p1 <- ggplot(pcaData, aes(PC1, PC2, color=Genotype, shape=Inducer)) +
+  geom_point(size=3) + scale_color_lancet() + 
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed(ratio = (max(pcaData$PC1)-min(pcaData$PC1))/(max(pcaData$PC2)-min(pcaData$PC2))) 
+
+ggsave("Plots/pca_dataset_1_Induc_gt_exon.pdf", plot = p1)
+p1
+
+pcaData <- plotPCA(rlog.one, intgroup=c("Read_counts", "Inducer"), returnData=TRUE, ntop = my_top_genes)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+p2 <- ggplot(pcaData, aes(PC1, PC2, color=Read_counts, shape=Inducer)) +
+  geom_point(size=3) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed(ratio = (max(pcaData$PC1)-min(pcaData$PC1))/(max(pcaData$PC2)-min(pcaData$PC2))) + scale_color_gradient2(high = "blue", mid = "yellow")
+
+ggsave("Plots/pca_dataset_1_Induc_read_counts_exon.pdf", plot = p2)
+p2
+```
+
+PCA plots indicate that samples separated on PC1 mostly by sequencing depth, within treatments and genotypes. This implies that sequencing depth has to be controlled for by including this factor in the design formula.
+
+### Filtering out poorly-expressed genes (less than 20 reads across all samples) - exons
+```{r filtering genes based on total counts of reads for exons}
+
+# Keep genes with at least 10 reads total across samples
+keep <- rowSums(counts(dds.one.exon)) >= 20
+dds.one.exon <- dds.one.exon[keep,]
+```
+
+### Spliting DESeq object based on genotype - exons
+```{r}
+dds.one.exon.wt <- dds.one.exon[ , dds.one.exon$Genotype == "WT"]
+dds.one.exon.wt$Genotype <- droplevels( dds.one.exon.wt$Genotype)
+dds.one.exon.wt$Group_gt_ind <- droplevels( dds.one.exon.wt$Group_gt_ind)
+dds.one.exon.wt$Group <- droplevels( dds.one.exon.wt$Group)
+
+dds.one.exon.ko <- dds.one.exon[ , dds.one.exon$Genotype == "RNaseL_KO"]
+dds.one.exon.ko$Genotype <- droplevels( dds.one.exon.ko$Genotype)
+dds.one.exon.ko$Group_gt_ind <- droplevels( dds.one.exon.ko$Group_gt_ind)
+dds.one.exon.ko$Group <- droplevels( dds.one.exon.ko$Group)
+```
+
+### Calculate differential expression for WT - exons
+```{r}
+# Calculate DE for WT samples
+dds.one.exon.wt$Group_gt_ind <- relevel(dds.one.exon.wt$Group_gt_ind, "WTNone")
+dds.one.exon.wt <- DESeq(dds.one.exon.wt)
+resultsNames(dds.one.exon.wt)
+
+# Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
+res_wtIC_vs_wtNone <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
+res_wt25A_vs_wtNone <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+
+summary(res_wtIC_vs_wtNone, alpha = 0.05)
+summary(res_wt25A_vs_wtNone, alpha = 0.05)
+```
+
+### Calculate differential expression for RNaseL_KO - exons
+```{r}
+dds.one.exon.ko$Group_gt_ind <- relevel(dds.one.exon.ko$Group_gt_ind, "RNaseL_KONone")
+design(dds.one.exon.ko) <- ~Group_gt_ind # Changing design given that there is no KO sample with Low read counts, otherwise you get an error message 
+# Error: full model matrix is less than full rank
+dds.one.exon.ko <- DESeq(dds.one.exon.ko)
+resultsNames(dds.one.exon.ko)
+
+res_koIC_vs_koNone <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
+res_ko25A_vs_koNone <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+
+summary(res_koIC_vs_koNone, alpha = 0.05)
+summary(res_ko25A_vs_koNone, alpha = 0.05)
+```
+
+### Write DE tables to file - exons
+```{r}
+# Sort results by Log2FC
+res_wtIC_vs_wtNone.logfc_sorted <- sort_and_write_res_table(res_wtIC_vs_wtNone, "DE_wtIC_vs_wtNone_exon")
+res_koIC_vs_koNone.logfc_sorted <- sort_and_write_res_table(res_koIC_vs_koNone, "DE_koIC_vs_koNone_exon")
+res_wt25A_vs_wtNone.logfc_sorted <- sort_and_write_res_table(res_wt25A_vs_wtNone, "DE_wt25A_vs_wtNone_exon")
+res_ko25A_vs_koNone.logfc_sorted <- sort_and_write_res_table(res_ko25A_vs_koNone, "DE_ko25A_vs_koNone_exon")
+
+# Save sorted files as a list
+DE_results[["wtIC_vs_wtNone_exon"]]  <- res_wtIC_vs_wtNone.logfc_sorted
+DE_results[["koIC_vs_koNone_exon"]] <- res_koIC_vs_koNone.logfc_sorted
+DE_results[["wt25A_vs_wtNone_exon"]] <- res_wt25A_vs_wtNone.logfc_sorted
+DE_results[["ko25A_vs_koNone_exon"]] <- res_ko25A_vs_koNone.logfc_sorted
+```
+
+########################################################################
+## RIBOseq counts
+########################################################################
+
+### Load data - RIBOseq
+```{r}
+all <- read.csv("./data/cdsfoot_round.csv", row.names = 1) 
+
+# Keep table with Ensemble IDs and gene Symbols
+gene_symbols <- replace_gene_acc_by_symbol_ids(rownames(all))
+ensembl_to_symbol <- as.data.frame(cbind("Ensembl_ID" = rownames(all), "gene_name" = gene_symbols), row.names = 1)
+
+# Load metadata
+metadata <- read.delim2("./data/Metadata_footprint.txt", sep = "\t", row.names = 1, header = T)
+
+# Sort tables so metadata and read counts match order
+metadata<-  metadata[match(colnames(all), rownames(metadata)), ]
+
+# Add total read counts and sample id columns to metadata
+metadata <- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
+
+#Remove all zero rows
+all <- remove_all_zero_rows(all, min_total_count = 0)
+```
+
+### Analysis of expression data using DESeq2 - RIBOseq
+```{r}
+# Convert metadata to factors
+for (variable in c("Read_length","Sequencing_pool","Date_1st_submitted","Species","Strain_name","Genotype","Media","Comments","Group","Colection_time","X25A","PolyIC","Inducer","Treatment","Sample_id")){
+  metadata[,variable] <- as.factor(metadata[,variable])  
+}
+
+# Subset metadata and count tables by Data
+meta_one_RS <- metadata
+all_one_RS <- all
+```
+
+I created a new column in metadata (Group_gt_ind) that concatenates the info from Genotype and Inducer columns so coefficients include genotype info.
+
+I also added a new column (Read_depth) to tag samples with High or Low sequencing depth so this factor can be controlled for in the design formula.
+
+The design formula use in DESeq2 is the following:
+  
+    design = ~ Read_depth + Group_gt_ind
+
+```{r}
+# add new factors (Group_gt_ind and Read_depth (high > 10M reads / Low < 10M reads))
+meta_one_RS$Group_gt_ind <- factor(paste0(meta_one_RS$Genotype, meta_one_RS$Inducer))
+meta_one_RS$Read_depth <- 'High'
+meta_one_RS[meta_one_RS$Read_counts < 10e6,]$Read_depth <- 'Low'
+meta_one_RS$Read_depth <- as.factor(meta_one_RS$Read_depth)
+
+# Adding read_depth in design to control for read_depth
+dds.one.RS <- DESeqDataSetFromMatrix(countData = all_one_RS, 
+                              colData = meta_one_RS,  
+                              design = ~ Read_depth + Group_gt_ind)
+
+```
+
+### Exploratory analysis with DESeq object- RIBOseq
+```{r}
+# Plot total reads per sample using barchar
+p <- ggbarplot(data = meta_one_RS, 
+          x = "Sample_id", 
+          y = "Read_counts",
+          x.text.angle = 90,
+          fill = "Inducer", 
+          title = "Total read counts", 
+          ylab = "Read counts",
+          sort.by.groups = TRUE,
+          palette = "jco",
+          sort.val = "asc", 
+          facet.by = "Genotype")
+ggsave("Plots/barplot_read_counts_RS.pdf", plot = p)
+p
+
+# Normalize counts
+rlog.one <- rlog(dds.one.RS, blind=FALSE)
+
+# Keep genes with at least 20 reads total across samples
+keep <- rowSums(counts(dds.one.RS)) >= 20
+dds.one.RS <- dds.one.RS[keep,]
+
+# Calculate distances between samples
+sampleDists <- dist(t(assay(rlog.one)))
+
+# Plot inter-sample distances
+old.par <- par(no.readonly=T)
+
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(rlog.one$Sequencing_pool, rlog.one$Genotype, rlog.one$Inducer, sep="-")
+colnames(sampleDistMatrix) <- NULL
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+pheatmap(sampleDistMatrix,
+         clustering_distance_rows=sampleDists,
+         clustering_distance_cols=sampleDists,
+         col=colors)
+
+# PCA
+my_top_genes = 500
+
+pcaData <- plotPCA(rlog.one, intgroup=c("Genotype", "Inducer"), returnData=TRUE, ntop = my_top_genes)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+y.coords = c(min(pcaData$PC1, pcaData$PC2), max(pcaData$PC1, pcaData$PC2))
+x.coords = y.coords
+p1 <- ggplot(pcaData, aes(PC1, PC2, color=Genotype, shape=Inducer)) +
+  geom_point(size=3) + scale_color_lancet() + 
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed(ratio = (max(pcaData$PC1)-min(pcaData$PC1))/(max(pcaData$PC2)-min(pcaData$PC2))) 
+
+ggsave("Plots/pca_dataset_1_Induc_gt_RS.pdf", plot = p1)
+p1
+
+pcaData <- plotPCA(rlog.one, intgroup=c("Read_counts", "Inducer"), returnData=TRUE, ntop = my_top_genes)
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+p2 <- ggplot(pcaData, aes(PC1, PC2, color=Read_counts, shape=Inducer)) +
+  geom_point(size=3) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed(ratio = (max(pcaData$PC1)-min(pcaData$PC1))/(max(pcaData$PC2)-min(pcaData$PC2))) + scale_color_gradient2(high = "blue", mid = "yellow")
+
+ggsave("Plots/pca_dataset_1_Induc_read_counts_RS.pdf", plot = p2)
+p2
+```
+
+PCA plots indicate that samples separated on PC1 mostly by sequencing depth, within treatments and genotypes. This implies that sequencing depth has to be controlled for by including this factor in the design formula.
+
+### Filtering out poorly-expressed genes (less than 20 reads across all samples) - RIBOseq
+```{r filtering genes based on total counts of reads for RIBOseq data}
+
+# Keep genes with at least 10 reads total across samples
+keep <- rowSums(counts(dds.one.RS)) >= 20
+dds.one.RS <- dds.one.RS[keep,]
+```
+
+### Spliting DESeq object based on genotype - RIBOseq
+```{r}
+dds.one.RS.wt <- dds.one.RS[ , dds.one.RS$Genotype == "WT"]
+dds.one.RS.wt$Genotype <- droplevels( dds.one.RS.wt$Genotype)
+dds.one.RS.wt$Group_gt_ind <- droplevels( dds.one.RS.wt$Group_gt_ind)
+dds.one.RS.wt$Group <- droplevels( dds.one.RS.wt$Group)
+
+dds.one.RS.ko <- dds.one.RS[ , dds.one.RS$Genotype == "RNaseL_KO"]
+dds.one.RS.ko$Genotype <- droplevels( dds.one.RS.ko$Genotype)
+dds.one.RS.ko$Group_gt_ind <- droplevels( dds.one.RS.ko$Group_gt_ind)
+dds.one.RS.ko$Group <- droplevels( dds.one.RS.ko$Group)
+
+```
+
+### Calculate differential expression for WT - RIBOseq
+```{r}
+
+# Calculate DE for WT samples
+dds.one.RS.wt$Group_gt_ind <- relevel(dds.one.RS.wt$Group_gt_ind, "WTNone")
+dds.one.RS.wt <- DESeq(dds.one.RS.wt)
+resultsNames(dds.one.RS.wt)
+
+
+# Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
+res_wtIC_vs_wtNone <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
+res_wt25A_vs_wtNone <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+
+summary(res_wtIC_vs_wtNone, alpha = 0.05)
+summary(res_wt25A_vs_wtNone, alpha = 0.05)
+```
+
+### Calculate differential expression for RNaseL_KO - RIBOseq
+```{r}
+dds.one.RS.ko$Group_gt_ind <- relevel(dds.one.RS.ko$Group_gt_ind, "RNaseL_KONone")
+design(dds.one.RS.ko) <- ~Group_gt_ind # Changing design given that there is no KO sample with Low read counts, otherwise you get an error message 
+# Error: full model matrix is less than full rank
+dds.one.RS.ko <- DESeq(dds.one.RS.ko)
+resultsNames(dds.one.RS.ko)
+
+res_koIC_vs_koNone <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
+res_ko25A_vs_koNone <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+
+summary(res_koIC_vs_koNone, alpha = 0.05)
+summary(res_ko25A_vs_koNone, alpha = 0.05)
+```
+
+### Write DE tables to file - exons
+```{r}
+# Sort results by Log2FC
+res_wtIC_vs_wtNone.logfc_sorted <- sort_and_write_res_table(res_wtIC_vs_wtNone, "DE_wtIC_vs_wtNone_RS")
+res_koIC_vs_koNone.logfc_sorted <- sort_and_write_res_table(res_koIC_vs_koNone, "DE_koIC_vs_koNone_RS")
+res_wt25A_vs_wtNone.logfc_sorted <- sort_and_write_res_table(res_wt25A_vs_wtNone, "DE_wt25A_vs_wtNone_RS")
+res_ko25A_vs_koNone.logfc_sorted <- sort_and_write_res_table(res_ko25A_vs_koNone, "DE_ko25A_vs_koNone_RS")
+
+# Save sorted files as a list
+DE_results[["wtIC_vs_wtNone_RS"]]  <- res_wtIC_vs_wtNone.logfc_sorted
+DE_results[["koIC_vs_koNone_RS"]] <- res_koIC_vs_koNone.logfc_sorted
+DE_results[["wt25A_vs_wtNone_RS"]] <- res_wt25A_vs_wtNone.logfc_sorted
+DE_results[["ko25A_vs_koNone_RS"]] <- res_ko25A_vs_koNone.logfc_sorted
+```
+
+
+```{r}
+sessionInfo()
+```
