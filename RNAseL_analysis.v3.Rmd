@@ -34,7 +34,9 @@ h4.date {
 
 ### Results
 
-[Link to differential expression tables](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE?csf=1&web=1&e=eXNepC)
+[Link to filtered differential expression tables](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_with_filter?csf=1&web=1&e=5hlvbT)
+
+[Link to unfiltered differential expression tables](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_unfiltered?csf=1&web=1&e=t8zMsL)
 
 |File|Contrast|Feature|Data source|
 |:---|:----------|:------|:----------|
@@ -129,8 +131,9 @@ metadata <- metadata[colnames(all),]
 # Add total read counts and sample id columns to metadata
 metadata <- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
 
+# Agnes wanted to keep all genes in the analysis, including all 0 genes
 #Remove all zero rows
-all <- remove_all_zero_rows(all, min_total_count = 0)
+# all <- remove_all_zero_rows(all, min_total_count = 0)
 
 ```
 
@@ -195,8 +198,8 @@ p
 # Normalize counts
 rlog.one <- rlog(dds.one.cds, blind=FALSE)
 
-# Keep genes with at least 20 reads total across samples
-keep <- rowSums(counts(dds.one.cds)) >= 20
+# Keep genes with at least 0 reads total across samples
+keep <- rowSums(counts(dds.one.cds)) >= 0 # Agnes wanted to keep all genes for the analysis
 dds.one.cds <- dds.one.cds[keep,]
 
 # Calculate distances between samples
@@ -248,7 +251,7 @@ PCA plots indicate that samples separated on PC1 mostly by sequencing depth, wit
 ```{r}
 
 # Keep genes with at least 10 reads total across samples
-keep <- rowSums(counts(dds.one.cds)) >= 20
+keep <- rowSums(counts(dds.one.cds)) >= 0 # Agnes wanted to keep all genes
 dds.one.cds <- dds.one.cds[keep,]
 ```
 
@@ -356,8 +359,9 @@ metadata <- metadata[colnames(all),]
 # Add total read counts and sample id columns to metadata
 metadata <- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
 
+# Agnes wanted to keep all genes in the analysis, including all 0 genes
 #Remove all zero rows
-all <- remove_all_zero_rows(all, min_total_count = 0)
+#all <- remove_all_zero_rows(all, min_total_count = 0)
 
 ```
 
@@ -420,7 +424,7 @@ p
 rlog.one <- rlog(dds.one.exon, blind=FALSE)
 
 # Keep genes with at least 20 reads total across samples
-keep <- rowSums(counts(dds.one.exon)) >= 20
+keep <- rowSums(counts(dds.one.exon)) >= 0 # Agnes wanted to keep all genes for the analysis
 dds.one.exon <- dds.one.exon[keep,]
 
 # Calculate distances between samples
@@ -472,7 +476,7 @@ PCA plots indicate that samples separated on PC1 mostly by sequencing depth, wit
 ```{r filtering genes based on total counts of reads for exons}
 
 # Keep genes with at least 10 reads total across samples
-keep <- rowSums(counts(dds.one.exon)) >= 20
+keep <- rowSums(counts(dds.one.exon)) >= 0 # Agnes wanted to keep all genes
 dds.one.exon <- dds.one.exon[keep,]
 ```
 
@@ -555,8 +559,9 @@ metadata<-  metadata[match(colnames(all), rownames(metadata)), ]
 # Add total read counts and sample id columns to metadata
 metadata <- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
 
+# Agnes wanted to keep all genes in the analysis, including all 0 genes
 #Remove all zero rows
-all <- remove_all_zero_rows(all, min_total_count = 0)
+#all <- remove_all_zero_rows(all, min_total_count = 0)
 ```
 
 ### Analysis of expression data using DESeq2 - RIBOseq
@@ -614,7 +619,7 @@ p
 rlog.one <- rlog(dds.one.RS, blind=FALSE)
 
 # Keep genes with at least 20 reads total across samples
-keep <- rowSums(counts(dds.one.RS)) >= 20
+keep <- rowSums(counts(dds.one.RS)) >= 0 # Agnes wanted to keep all genes for the analysis
 dds.one.RS <- dds.one.RS[keep,]
 
 # Calculate distances between samples
@@ -666,7 +671,7 @@ PCA plots indicate that samples separated on PC1 mostly by sequencing depth, wit
 ```{r filtering genes based on total counts of reads for RIBOseq data}
 
 # Keep genes with at least 10 reads total across samples
-keep <- rowSums(counts(dds.one.RS)) >= 20
+keep <- rowSums(counts(dds.one.RS)) >= 0 # Agnes wanted to keep all genes
 dds.one.RS <- dds.one.RS[keep,]
 ```
 

@@ -215,7 +215,7 @@ remove_all_zero_rows <- function(df, min_total_count = 0){
 # Fetch exon length from BioMart
 normalize_by_TPM <- function(counts.df) {
   
-  listMarts(host="https://uswest.ensembl.org")
+  listMarts(host="https://useast.ensembl.org")
   ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
   
   my_mart <- getBM(attributes=c("ensembl_gene_id","exon_chrom_start","exon_chrom_end"), 

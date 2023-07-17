@@ -1913,8 +1913,10 @@ Log2FC for RNAseq and RIBOseq datasets from samples induced with
 2-5A/polyI:C, using read-count tables based on exon or CDS features.</p>
 <div id="results" class="section level3">
 <h3>Results</h3>
-<p><a href="https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE?csf=1&amp;web=1&amp;e=eXNepC">Link
-to differential expression tables</a></p>
+<p><a href="https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_with_filter?csf=1&amp;web=1&amp;e=5hlvbT">Link
+to filtered differential expression tables</a></p>
+<p><a href="https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_unfiltered?csf=1&amp;web=1&amp;e=t8zMsL">Link
+to unfiltered differential expression tables</a></p>
 <table>
 <thead>
 <tr class="header">
@@ -2135,8 +2137,9 @@ metadata &lt;- metadata[colnames(all),]
 # Add total read counts and sample id columns to metadata
 metadata &lt;- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
 
+# Agnes wanted to keep all genes in the analysis, including all 0 genes
 #Remove all zero rows
-all &lt;- remove_all_zero_rows(all, min_total_count = 0)</code></pre>
+# all &lt;- remove_all_zero_rows(all, min_total_count = 0)</code></pre>
 </div>
 <div id="analysis-of-expression-data-using-deseq2---cds" class="section level3">
 <h3>Analysis of expression data using DESeq2 - CDS</h3>
@@ -2190,8 +2193,8 @@ p</code></pre>
 <pre class="r"><code># Normalize counts
 rlog.one &lt;- rlog(dds.one.cds, blind=FALSE)
 
-# Keep genes with at least 20 reads total across samples
-keep &lt;- rowSums(counts(dds.one.cds)) &gt;= 20
+# Keep genes with at least 0 reads total across samples
+keep &lt;- rowSums(counts(dds.one.cds)) &gt;= 0 # Agnes wanted to keep all genes for the analysis
 dds.one.cds &lt;- dds.one.cds[keep,]
 
 # Calculate distances between samples
@@ -2245,7 +2248,7 @@ formula.</p>
 <h3>Filtering out poorly-expressed genes (less than 20 reads across all
 samples) - CDS</h3>
 <pre class="r"><code># Keep genes with at least 10 reads total across samples
-keep &lt;- rowSums(counts(dds.one.cds)) &gt;= 20
+keep &lt;- rowSums(counts(dds.one.cds)) &gt;= 0 # Agnes wanted to keep all genes
 dds.one.cds &lt;- dds.one.cds[keep,]</code></pre>
 </div>
 <div id="spliting-deseq-object-based-on-genotype---cds" class="section level3">
@@ -2274,24 +2277,24 @@ res_wt25A_vs_wtNone &lt;- lfcShrink(dds.one.cds.wt, coef = &quot;Group_gt_ind_WT
 
 summary(res_wtIC_vs_wtNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 14485 with nonzero total read count
+## out of 17368 with nonzero total read count
 ## adjusted p-value &lt; 0.05
-## LFC &gt; 0 (up)       : 1232, 8.5%
-## LFC &lt; 0 (down)     : 587, 4.1%
+## LFC &gt; 0 (up)       : 1208, 7%
+## LFC &lt; 0 (down)     : 644, 3.7%
 ## outliers [1]       : 0, 0%
-## low counts [2]     : 1405, 9.7%
-## (mean count &lt; 4)
+## low counts [2]     : 4973, 29%
+## (mean count &lt; 8)
 ## [1] see &#39;cooksCutoff&#39; argument of ?results
 ## [2] see &#39;independentFiltering&#39; argument of ?results</code></pre>
 <pre class="r"><code>summary(res_wt25A_vs_wtNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 14485 with nonzero total read count
+## out of 17368 with nonzero total read count
 ## adjusted p-value &lt; 0.05
-## LFC &gt; 0 (up)       : 753, 5.2%
-## LFC &lt; 0 (down)     : 157, 1.1%
+## LFC &gt; 0 (up)       : 730, 4.2%
+## LFC &lt; 0 (down)     : 225, 1.3%
 ## outliers [1]       : 0, 0%
-## low counts [2]     : 2247, 16%
-## (mean count &lt; 8)
+## low counts [2]     : 7294, 42%
+## (mean count &lt; 35)
 ## [1] see &#39;cooksCutoff&#39; argument of ?results
 ## [2] see &#39;independentFiltering&#39; argument of ?results</code></pre>
 </div>
@@ -2310,18 +2313,18 @@ res_ko25A_vs_koNone &lt;- lfcShrink(dds.one.cds.ko, coef = &quot;Group_gt_ind_RN
 
 summary(res_koIC_vs_koNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 14470 with nonzero total read count
+## out of 17051 with nonzero total read count
 ## adjusted p-value &lt; 0.05
-## LFC &gt; 0 (up)       : 148, 1%
-## LFC &lt; 0 (down)     : 3, 0.021%
+## LFC &gt; 0 (up)       : 142, 0.83%
+## LFC &lt; 0 (down)     : 3, 0.018%
 ## outliers [1]       : 0, 0%
-## low counts [2]     : 281, 1.9%
-## (mean count &lt; 2)
+## low counts [2]     : 1281, 7.5%
+## (mean count &lt; 0)
 ## [1] see &#39;cooksCutoff&#39; argument of ?results
 ## [2] see &#39;independentFiltering&#39; argument of ?results</code></pre>
 <pre class="r"><code>summary(res_ko25A_vs_koNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 14470 with nonzero total read count
+## out of 17051 with nonzero total read count
 ## adjusted p-value &lt; 0.05
 ## LFC &gt; 0 (up)       : 0, 0%
 ## LFC &lt; 0 (down)     : 0, 0%
@@ -2392,8 +2395,9 @@ metadata &lt;- metadata[colnames(all),]
 # Add total read counts and sample id columns to metadata
 metadata &lt;- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
 
+# Agnes wanted to keep all genes in the analysis, including all 0 genes
 #Remove all zero rows
-all &lt;- remove_all_zero_rows(all, min_total_count = 0)</code></pre>
+#all &lt;- remove_all_zero_rows(all, min_total_count = 0)</code></pre>
 </div>
 <div id="analysis-of-expression-data-using-deseq2---exons" class="section level3">
 <h3>Analysis of expression data using DESeq2 - exons</h3>
@@ -2449,7 +2453,7 @@ p</code></pre>
 rlog.one &lt;- rlog(dds.one.exon, blind=FALSE)
 
 # Keep genes with at least 20 reads total across samples
-keep &lt;- rowSums(counts(dds.one.exon)) &gt;= 20
+keep &lt;- rowSums(counts(dds.one.exon)) &gt;= 0 # Agnes wanted to keep all genes for the analysis
 dds.one.exon &lt;- dds.one.exon[keep,]
 
 # Calculate distances between samples
@@ -2503,7 +2507,7 @@ formula.</p>
 <h3>Filtering out poorly-expressed genes (less than 20 reads across all
 samples) - exons</h3>
 <pre class="r"><code># Keep genes with at least 10 reads total across samples
-keep &lt;- rowSums(counts(dds.one.exon)) &gt;= 20
+keep &lt;- rowSums(counts(dds.one.exon)) &gt;= 0 # Agnes wanted to keep all genes
 dds.one.exon &lt;- dds.one.exon[keep,]</code></pre>
 </div>
 <div id="spliting-deseq-object-based-on-genotype---exons" class="section level3">
@@ -2532,24 +2536,24 @@ res_wt25A_vs_wtNone &lt;- lfcShrink(dds.one.exon.wt, coef = &quot;Group_gt_ind_W
 
 summary(res_wtIC_vs_wtNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 24281 with nonzero total read count
+## out of 37152 with nonzero total read count
 ## adjusted p-value &lt; 0.05
-## LFC &gt; 0 (up)       : 1931, 8%
-## LFC &lt; 0 (down)     : 1834, 7.6%
+## LFC &gt; 0 (up)       : 1707, 4.6%
+## LFC &lt; 0 (down)     : 1720, 4.6%
 ## outliers [1]       : 0, 0%
-## low counts [2]     : 6120, 25%
-## (mean count &lt; 6)
+## low counts [2]     : 19394, 52%
+## (mean count &lt; 7)
 ## [1] see &#39;cooksCutoff&#39; argument of ?results
 ## [2] see &#39;independentFiltering&#39; argument of ?results</code></pre>
 <pre class="r"><code>summary(res_wt25A_vs_wtNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 24281 with nonzero total read count
+## out of 37152 with nonzero total read count
 ## adjusted p-value &lt; 0.05
-## LFC &gt; 0 (up)       : 1200, 4.9%
-## LFC &lt; 0 (down)     : 898, 3.7%
+## LFC &gt; 0 (up)       : 1051, 2.8%
+## LFC &lt; 0 (down)     : 882, 2.4%
 ## outliers [1]       : 0, 0%
-## low counts [2]     : 8474, 35%
-## (mean count &lt; 12)
+## low counts [2]     : 22857, 62%
+## (mean count &lt; 20)
 ## [1] see &#39;cooksCutoff&#39; argument of ?results
 ## [2] see &#39;independentFiltering&#39; argument of ?results</code></pre>
 </div>
@@ -2568,18 +2572,18 @@ res_ko25A_vs_koNone &lt;- lfcShrink(dds.one.exon.ko, coef = &quot;Group_gt_ind_R
 
 summary(res_koIC_vs_koNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 24101 with nonzero total read count
+## out of 36014 with nonzero total read count
 ## adjusted p-value &lt; 0.05
-## LFC &gt; 0 (up)       : 171, 0.71%
-## LFC &lt; 0 (down)     : 4, 0.017%
+## LFC &gt; 0 (up)       : 171, 0.47%
+## LFC &lt; 0 (down)     : 4, 0.011%
 ## outliers [1]       : 0, 0%
-## low counts [2]     : 4204, 17%
+## low counts [2]     : 16066, 45%
 ## (mean count &lt; 4)
 ## [1] see &#39;cooksCutoff&#39; argument of ?results
 ## [2] see &#39;independentFiltering&#39; argument of ?results</code></pre>
 <pre class="r"><code>summary(res_ko25A_vs_koNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 24101 with nonzero total read count
+## out of 36014 with nonzero total read count
 ## adjusted p-value &lt; 0.05
 ## LFC &gt; 0 (up)       : 0, 0%
 ## LFC &lt; 0 (down)     : 0, 0%
@@ -2629,8 +2633,9 @@ metadata&lt;-  metadata[match(colnames(all), rownames(metadata)), ]
 # Add total read counts and sample id columns to metadata
 metadata &lt;- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
 
+# Agnes wanted to keep all genes in the analysis, including all 0 genes
 #Remove all zero rows
-all &lt;- remove_all_zero_rows(all, min_total_count = 0)</code></pre>
+#all &lt;- remove_all_zero_rows(all, min_total_count = 0)</code></pre>
 </div>
 <div id="analysis-of-expression-data-using-deseq2---riboseq" class="section level3">
 <h3>Analysis of expression data using DESeq2 - RIBOseq</h3>
@@ -2682,7 +2687,7 @@ p</code></pre>
 rlog.one &lt;- rlog(dds.one.RS, blind=FALSE)
 
 # Keep genes with at least 20 reads total across samples
-keep &lt;- rowSums(counts(dds.one.RS)) &gt;= 20
+keep &lt;- rowSums(counts(dds.one.RS)) &gt;= 0 # Agnes wanted to keep all genes for the analysis
 dds.one.RS &lt;- dds.one.RS[keep,]
 
 # Calculate distances between samples
@@ -2736,7 +2741,7 @@ formula.</p>
 <h3>Filtering out poorly-expressed genes (less than 20 reads across all
 samples) - RIBOseq</h3>
 <pre class="r"><code># Keep genes with at least 10 reads total across samples
-keep &lt;- rowSums(counts(dds.one.RS)) &gt;= 20
+keep &lt;- rowSums(counts(dds.one.RS)) &gt;= 0 # Agnes wanted to keep all genes
 dds.one.RS &lt;- dds.one.RS[keep,]</code></pre>
 </div>
 <div id="spliting-deseq-object-based-on-genotype---riboseq" class="section level3">
@@ -2765,24 +2770,24 @@ res_wt25A_vs_wtNone &lt;- lfcShrink(dds.one.RS.wt, coef = &quot;Group_gt_ind_WT2
 
 summary(res_wtIC_vs_wtNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 14069 with nonzero total read count
+## out of 17311 with nonzero total read count
 ## adjusted p-value &lt; 0.05
-## LFC &gt; 0 (up)       : 1179, 8.4%
-## LFC &lt; 0 (down)     : 870, 6.2%
+## LFC &gt; 0 (up)       : 1164, 6.7%
+## LFC &lt; 0 (down)     : 935, 5.4%
 ## outliers [1]       : 0, 0%
-## low counts [2]     : 819, 5.8%
-## (mean count &lt; 2)
+## low counts [2]     : 3965, 23%
+## (mean count &lt; 3)
 ## [1] see &#39;cooksCutoff&#39; argument of ?results
 ## [2] see &#39;independentFiltering&#39; argument of ?results</code></pre>
 <pre class="r"><code>summary(res_wt25A_vs_wtNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 14069 with nonzero total read count
+## out of 17311 with nonzero total read count
 ## adjusted p-value &lt; 0.05
-## LFC &gt; 0 (up)       : 649, 4.6%
-## LFC &lt; 0 (down)     : 262, 1.9%
+## LFC &gt; 0 (up)       : 653, 3.8%
+## LFC &lt; 0 (down)     : 338, 2%
 ## outliers [1]       : 0, 0%
-## low counts [2]     : 1364, 9.7%
-## (mean count &lt; 4)
+## low counts [2]     : 4625, 27%
+## (mean count &lt; 5)
 ## [1] see &#39;cooksCutoff&#39; argument of ?results
 ## [2] see &#39;independentFiltering&#39; argument of ?results</code></pre>
 </div>
@@ -2801,18 +2806,18 @@ res_ko25A_vs_koNone &lt;- lfcShrink(dds.one.RS.ko, coef = &quot;Group_gt_ind_RNa
 
 summary(res_koIC_vs_koNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 14039 with nonzero total read count
+## out of 16151 with nonzero total read count
 ## adjusted p-value &lt; 0.05
-## LFC &gt; 0 (up)       : 52, 0.37%
+## LFC &gt; 0 (up)       : 51, 0.32%
 ## LFC &lt; 0 (down)     : 0, 0%
 ## outliers [1]       : 0, 0%
-## low counts [2]     : 817, 5.8%
+## low counts [2]     : 2760, 17%
 ## (mean count &lt; 2)
 ## [1] see &#39;cooksCutoff&#39; argument of ?results
 ## [2] see &#39;independentFiltering&#39; argument of ?results</code></pre>
 <pre class="r"><code>summary(res_ko25A_vs_koNone, alpha = 0.05)</code></pre>
 <pre><code>## 
-## out of 14039 with nonzero total read count
+## out of 16151 with nonzero total read count
 ## adjusted p-value &lt; 0.05
 ## LFC &gt; 0 (up)       : 0, 0%
 ## LFC &lt; 0 (down)     : 0, 0%
