@@ -65,6 +65,8 @@ h4.date {
 |pca_dataset_1_Induc_gt_RS.pdf|PCA colored by genotype| CDS | RIBOseq|
 |pca_dataset_1_Induc_read_counts_RS.pdf|PCA colored by sequencing depth| CDS | RIBOseq|
 
+[Link to github repository](https://github.com/TriLab-bioinf/GOYDOSH_LAB_TK_61)
+
 ### R code
 
 ```{r include=FALSE}
