@@ -3,6 +3,7 @@ title: "TK_61: Rerun of RNAseq and RIBOseq datasets from samples induced with 2-
 author: "Hernan Lorenzi"
 date: "7/17/2023"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
     theme:
@@ -34,9 +35,11 @@ h4.date {
 
 ### Results
 
-[Link to filtered differential expression tables](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_with_filter?csf=1&web=1&e=5hlvbT)
+[Link to filtered differential expression tables with shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_with_filter?csf=1&web=1&e=5hlvbT)
 
-[Link to unfiltered differential expression tables](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_unfiltered?csf=1&web=1&e=t8zMsL)
+[Link to unfiltered differential expression tables with shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_unfiltered_shrinkage?csf=1&web=1&e=sr35Og)
+
+[Link to unfiltered differential expression tables with no shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_unfiltered_no_shrinkage?csf=1&web=1&e=FcWdKh)
 
 |File|Contrast|Feature|Data source|
 |:---|:----------|:------|:----------|
@@ -277,10 +280,14 @@ dds.one.cds.wt$Group_gt_ind <- relevel(dds.one.cds.wt$Group_gt_ind, "WTNone")
 dds.one.cds.wt <- DESeq(dds.one.cds.wt)
 resultsNames(dds.one.cds.wt)
 
+# Using results function instead of lfcShrink, as requested by Agnes
+res_wtIC_vs_wtNone <- results(dds.one.cds.wt, list(c( "Group_gt_ind_WTpolyIC_vs_WTNone" )))
+res_wt25A_vs_wtNone <- results(dds.one.cds.wt, list(c( "Group_gt_ind_WT25A_vs_WTNone")))
+
 
 # Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
-res_wtIC_vs_wtNone <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
-res_wt25A_vs_wtNone <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+# res_wtIC_vs_wtNone <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
+# res_wt25A_vs_wtNone <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
 
 summary(res_wtIC_vs_wtNone, alpha = 0.05)
 summary(res_wt25A_vs_wtNone, alpha = 0.05)
@@ -294,8 +301,12 @@ design(dds.one.cds.ko) <- ~Group_gt_ind
 dds.one.cds.ko <- DESeq(dds.one.cds.ko)
 resultsNames(dds.one.cds.ko)
 
-res_koIC_vs_koNone <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
-res_ko25A_vs_koNone <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+# Using results function instead of lfcShrink, as requested by Agnes
+res_koIC_vs_koNone <- results(dds.one.cds.ko, list(c( "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone")))
+res_ko25A_vs_koNone <- results(dds.one.cds.ko, list(c( "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone")))
+
+# res_koIC_vs_koNone <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
+# res_ko25A_vs_koNone <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
 
 summary(res_koIC_vs_koNone, alpha = 0.05)
 summary(res_ko25A_vs_koNone, alpha = 0.05)
@@ -500,9 +511,13 @@ dds.one.exon.wt$Group_gt_ind <- relevel(dds.one.exon.wt$Group_gt_ind, "WTNone")
 dds.one.exon.wt <- DESeq(dds.one.exon.wt)
 resultsNames(dds.one.exon.wt)
 
+res_wtIC_vs_wtNone <- results(dds.one.exon.wt, list(c( "Group_gt_ind_WTpolyIC_vs_WTNone")))
+res_wt25A_vs_wtNone <- results(dds.one.exon.wt, list(c("Group_gt_ind_WT25A_vs_WTNone")))
+
+
 # Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
-res_wtIC_vs_wtNone <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
-res_wt25A_vs_wtNone <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+# res_wtIC_vs_wtNone <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
+# res_wt25A_vs_wtNone <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
 
 summary(res_wtIC_vs_wtNone, alpha = 0.05)
 summary(res_wt25A_vs_wtNone, alpha = 0.05)
@@ -516,8 +531,12 @@ design(dds.one.exon.ko) <- ~Group_gt_ind # Changing design given that there is n
 dds.one.exon.ko <- DESeq(dds.one.exon.ko)
 resultsNames(dds.one.exon.ko)
 
-res_koIC_vs_koNone <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
-res_ko25A_vs_koNone <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+res_koIC_vs_koNone <- results(dds.one.exon.ko,list(c( "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone")))
+res_ko25A_vs_koNone <- results(dds.one.exon.ko,list(c( "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone")))
+
+
+# res_koIC_vs_koNone <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
+# res_ko25A_vs_koNone <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
 
 summary(res_koIC_vs_koNone, alpha = 0.05)
 summary(res_ko25A_vs_koNone, alpha = 0.05)
@@ -697,10 +716,13 @@ dds.one.RS.wt$Group_gt_ind <- relevel(dds.one.RS.wt$Group_gt_ind, "WTNone")
 dds.one.RS.wt <- DESeq(dds.one.RS.wt)
 resultsNames(dds.one.RS.wt)
 
+res_wtIC_vs_wtNone <- results(dds.one.RS.wt, list(c( "Group_gt_ind_WTpolyIC_vs_WTNone")))
+res_wt25A_vs_wtNone <- results(dds.one.RS.wt, list(c( "Group_gt_ind_WT25A_vs_WTNone")))
+
 
 # Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
-res_wtIC_vs_wtNone <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
-res_wt25A_vs_wtNone <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+# res_wtIC_vs_wtNone <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
+# res_wt25A_vs_wtNone <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
 
 summary(res_wtIC_vs_wtNone, alpha = 0.05)
 summary(res_wt25A_vs_wtNone, alpha = 0.05)
@@ -714,8 +736,11 @@ design(dds.one.RS.ko) <- ~Group_gt_ind # Changing design given that there is no 
 dds.one.RS.ko <- DESeq(dds.one.RS.ko)
 resultsNames(dds.one.RS.ko)
 
-res_koIC_vs_koNone <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
-res_ko25A_vs_koNone <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+res_koIC_vs_koNone <- results(dds.one.RS.ko, list(c( "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone")))
+res_ko25A_vs_koNone <- results(dds.one.RS.ko,list(c( "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone")))
+
+# res_koIC_vs_koNone <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
+# res_ko25A_vs_koNone <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
 
 summary(res_koIC_vs_koNone, alpha = 0.05)
 summary(res_ko25A_vs_koNone, alpha = 0.05)
