@@ -35,11 +35,15 @@ h4.date {
 
 ### Results
 
-[Link to filtered differential expression tables with shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_with_filter?csf=1&web=1&e=5hlvbT)
+[Link to filtered differential expression tables with apeglm shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_with_filter_and_shrinkage_apeglm?csf=1&web=1&e=AQEZ12)
 
-[Link to unfiltered differential expression tables with shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_unfiltered_shrinkage?csf=1&web=1&e=sr35Og)
+[Link to filtered differential expression tables with no shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_with_filter_no_shrinkage?csf=1&web=1&e=gUQXfr)
 
-[Link to unfiltered differential expression tables with no shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_unfiltered_no_shrinkage?csf=1&web=1&e=FcWdKh)
+[Link to filtered differential expression tables with ashr shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_with_filter_and_shrincage_ashr?csf=1&web=1&e=y9LuYJ)
+
+[Link to unfiltered differential expression tables with ashr shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_unfiltered_shrinkage_ashr?csf=1&web=1&e=MJdudr)
+
+[Link to unfiltered differential expression tables with no shrinkage](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/DE_unfiltered_no_shrinkage?csf=1&web=1&e=kJBEwI)
 
 |File|Contrast|Feature|Data source|
 |:---|:----------|:------|:----------|
@@ -69,6 +73,8 @@ h4.date {
 |barplot_read_counts_RS.pdf|Read counts per sample | CDS| RIBOseq|
 |pca_dataset_1_Induc_gt_RS.pdf|PCA colored by genotype| CDS | RIBOseq|
 |pca_dataset_1_Induc_read_counts_RS.pdf|PCA colored by sequencing depth| CDS | RIBOseq|
+
+[Link to mean normalized read counts (DESeq2 norm)](https://nih.sharepoint.com/:f:/r/sites/NIDDK-GuydoshLab/Shared%20Documents/TK_61/Results/Mean_norm_counts?csf=1&web=1&e=FpVpx7)
 
 [Link to github repository](https://github.com/TriLab-bioinf/GOYDOSH_LAB_TK_61)
 
@@ -113,6 +119,18 @@ source(file = "./02_Gene_enrichment_functions.R")
 
 ```
 
+### Control filtering steps and shrinkage
+```{r}
+# Remove genes with 0 counts across all samples
+remove_genes_with_zero_counts <- TRUE
+
+# Filter reads with less than N reads
+N_reads <- 20
+
+# Shrinkage type (either NONE, apeglm, ashr)
+shrinkage_type = 'apeglm'
+
+```
 ###########################################
 ## CDS counts
 ###########################################
@@ -134,10 +152,10 @@ metadata <- metadata[colnames(all),]
 # Add total read counts and sample id columns to metadata
 metadata <- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
 
-# Agnes wanted to keep all genes in the analysis, including all 0 genes
 #Remove all zero rows
-# all <- remove_all_zero_rows(all, min_total_count = 0)
-
+if (remove_genes_with_zero_counts){
+  all <- remove_all_zero_rows(all, min_total_count = 0)
+}
 ```
 
 ### Analysis of expression data using DESeq2 - CDS
@@ -175,9 +193,10 @@ meta_one_cds[meta_one_cds$Read_counts < 3e6,]$Read_depth <- 'Low'
 meta_one_cds$Read_depth <- as.factor(meta_one_cds$Read_depth)
 
 # Adding read_depth in design to control for read_depth
-dds.one.cds <- DESeqDataSetFromMatrix(countData = all_one_cds, 
-                              colData = meta_one_cds,  
+dds.one.cds <- DESeqDataSetFromMatrix(countData = all_one_cds,
+                              colData = meta_one_cds,
                               design = ~ Read_depth + Group_gt_ind)
+
 
 ```
 
@@ -254,7 +273,7 @@ PCA plots indicate that samples separated on PC1 mostly by sequencing depth, wit
 ```{r}
 
 # Keep genes with at least 10 reads total across samples
-keep <- rowSums(counts(dds.one.cds)) >= 0 # Agnes wanted to keep all genes
+keep <- rowSums(counts(dds.one.cds)) >= N_reads
 dds.one.cds <- dds.one.cds[keep,]
 ```
 
@@ -286,11 +305,45 @@ res_wt25A_vs_wtNone <- results(dds.one.cds.wt, list(c( "Group_gt_ind_WT25A_vs_WT
 
 
 # Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
-# res_wtIC_vs_wtNone <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
-# res_wt25A_vs_wtNone <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+res_wtIC_vs_wtNone.shr <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
+res_wt25A_vs_wtNone.shr <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+
+res_wtIC_vs_wtNone.apeglm <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "apeglm", )
+res_wt25A_vs_wtNone.apeglm <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "apeglm")
+
+
+# Function to generate MA plots
+make_MA_plots <- function(DESEQ_result, file_prefix = 'MAplot'){
+  plotMA(DESEQ_result, ylim=c(-10,10), main = file_prefix)
+  pdf(file = paste0("./Plots/",file_prefix,"_MAplot.pdf"))
+    plotMA(DESEQ_result, ylim=c(-10,10))
+  dev.off()
+}
+
+# Generate MA plots
+make_MA_plots(res_wtIC_vs_wtNone, file_prefix = "res_wtIC_vs_wtNone_RNAseq_cds")
+make_MA_plots(res_wt25A_vs_wtNone, file_prefix = "res_wt25A_vs_wtNone_RNAseq_cds")
+make_MA_plots(res_wtIC_vs_wtNone.shr, file_prefix = "res_wtIC_vs_wtNone_RNAseq_cds_shr")
+make_MA_plots(res_wt25A_vs_wtNone.shr, file_prefix = "res_wt25A_vs_wtNone_RNAseq_cds_shr")
+make_MA_plots(res_wtIC_vs_wtNone.apeglm, file_prefix = "res_wtIC_vs_wtNone_RNAseq_cds_apeglm")
+make_MA_plots(res_wt25A_vs_wtNone.apeglm, file_prefix = "res_wt25A_vs_wtNone_RNAseq_cds_apeglm")
+
+if (shrinkage_type == 'NONE'){
+  print("No shrinkage correction applied to Log2FC")
+} else if (shrinkage_type == 'ashr'){
+  res_wtIC_vs_wtNone <- res_wtIC_vs_wtNone.shr
+  res_wt25A_vs_wtNone <- res_wt25A_vs_wtNone.shr
+} else if (shrinkage_type == 'apeglm'){
+  res_wtIC_vs_wtNone <- res_wtIC_vs_wtNone.apeglm
+  res_wt25A_vs_wtNone <- res_wt25A_vs_wtNone.apeglm
+} else {
+  print("Shrinkage_type should be one of c(NONE, ashr, apeglm)")
+  quit(10)
+}
 
 summary(res_wtIC_vs_wtNone, alpha = 0.05)
 summary(res_wt25A_vs_wtNone, alpha = 0.05)
+
 ```
 
 ### Calculate DE for KO samples - CDS
@@ -305,11 +358,46 @@ resultsNames(dds.one.cds.ko)
 res_koIC_vs_koNone <- results(dds.one.cds.ko, list(c( "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone")))
 res_ko25A_vs_koNone <- results(dds.one.cds.ko, list(c( "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone")))
 
-# res_koIC_vs_koNone <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
-# res_ko25A_vs_koNone <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+res_koIC_vs_koNone.shr <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
+res_ko25A_vs_koNone.shr <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+
+res_koIC_vs_koNone.apeglm <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "apeglm")
+res_ko25A_vs_koNone.apeglm <- lfcShrink(dds.one.cds.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "apeglm")
+
+
+# Generate MA plots
+make_MA_plots(res_koIC_vs_koNone, file_prefix = "res_koIC_vs_koNone_RNAseq_cds")
+make_MA_plots(res_ko25A_vs_koNone, file_prefix = "res_ko25A_vs_koNone_RNAseq_cds")
+make_MA_plots(res_koIC_vs_koNone.shr, file_prefix = "res_koIC_vs_koNone_RNAseq_cds_shr")
+make_MA_plots(res_ko25A_vs_koNone.shr, file_prefix = "res_ko25A_vs_koNone_RNAseq_cds_shr")
+make_MA_plots(res_koIC_vs_koNone.apeglm, file_prefix = "res_koIC_vs_koNone_RNAseq_cds_apeglm")
+make_MA_plots(res_ko25A_vs_koNone.apeglm, file_prefix = "res_ko25A_vs_koNone_RNAseq_cds_apeglm")
+
+if (shrinkage_type == 'NONE'){
+  print("No shrinkage correction applied to Log2FC")
+} else if (shrinkage_type == 'ashr'){
+  res_koIC_vs_koNone <- res_koIC_vs_koNone.shr
+  res_ko25A_vs_koNone <- res_ko25A_vs_koNone.shr
+} else if (shrinkage_type == 'apeglm'){
+  res_koIC_vs_koNone <- res_koIC_vs_koNone.apeglm
+  res_ko25A_vs_koNone <- res_ko25A_vs_koNone.apeglm
+} else {
+  print("Shrinkage_type should be one of c(NONE, ashr, apeglm)")
+  quit(10)
+}
 
 summary(res_koIC_vs_koNone, alpha = 0.05)
 summary(res_ko25A_vs_koNone, alpha = 0.05)
+
+```
+### Calculate mean normalized read counts per gene - CDS
+```{r}
+dir.create('./Mean_norm_counts', showWarnings = FALSE)
+mean_norm_counts.wt <- apply(counts(dds.one.cds.wt, normalized=TRUE), 1, function(x) mean(x))
+mean_norm_counts.ko <- apply(counts(dds.one.cds.ko, normalized=TRUE), 1, function(x) mean(x))
+
+write.table(x = as.data.frame(mean_norm_counts.wt), file = './Mean_norm_counts/mean_norm_counts.wt.cds.txt', sep = "\t" )
+write.table(x = as.data.frame(mean_norm_counts.ko), file = './Mean_norm_counts/mean_norm_counts.ko.cds.txt', sep = "\t" )
 ```
 
 ### Write DE tables to file - CDS
@@ -370,10 +458,9 @@ metadata <- metadata[colnames(all),]
 # Add total read counts and sample id columns to metadata
 metadata <- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
 
-# Agnes wanted to keep all genes in the analysis, including all 0 genes
-#Remove all zero rows
-#all <- remove_all_zero_rows(all, min_total_count = 0)
-
+if (remove_genes_with_zero_counts){
+  all <- remove_all_zero_rows(all, min_total_count = 0)
+}
 ```
 
 ### Analysis of expression data using DESeq2 - exons
@@ -487,7 +574,7 @@ PCA plots indicate that samples separated on PC1 mostly by sequencing depth, wit
 ```{r filtering genes based on total counts of reads for exons}
 
 # Keep genes with at least 10 reads total across samples
-keep <- rowSums(counts(dds.one.exon)) >= 0 # Agnes wanted to keep all genes
+keep <- rowSums(counts(dds.one.exon)) >= N_reads
 dds.one.exon <- dds.one.exon[keep,]
 ```
 
@@ -504,6 +591,7 @@ dds.one.exon.ko$Group_gt_ind <- droplevels( dds.one.exon.ko$Group_gt_ind)
 dds.one.exon.ko$Group <- droplevels( dds.one.exon.ko$Group)
 ```
 
+
 ### Calculate differential expression for WT - exons
 ```{r}
 # Calculate DE for WT samples
@@ -516,11 +604,37 @@ res_wt25A_vs_wtNone <- results(dds.one.exon.wt, list(c("Group_gt_ind_WT25A_vs_WT
 
 
 # Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
-# res_wtIC_vs_wtNone <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
-# res_wt25A_vs_wtNone <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+res_wtIC_vs_wtNone.shr <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
+res_wt25A_vs_wtNone.shr <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+
+res_wtIC_vs_wtNone.apeglm <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "apeglm", )
+res_wt25A_vs_wtNone.apeglm <- lfcShrink(dds.one.exon.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "apeglm")
+
+
+# Generate MA plots
+make_MA_plots(res_wtIC_vs_wtNone, file_prefix = "res_wtIC_vs_wtNone_RNAseq_exon")
+make_MA_plots(res_wt25A_vs_wtNone, file_prefix = "res_wt25A_vs_wtNone_RNAseq_exon")
+make_MA_plots(res_wtIC_vs_wtNone.shr, file_prefix = "res_wtIC_vs_wtNone_RNAseq_exon_shr")
+make_MA_plots(res_wt25A_vs_wtNone.shr, file_prefix = "res_wt25A_vs_wtNone_RNAseq_exon_shr")
+make_MA_plots(res_wtIC_vs_wtNone.apeglm, file_prefix = "res_wtIC_vs_wtNone_RNAseq_exon_apeglm")
+make_MA_plots(res_wt25A_vs_wtNone.apeglm, file_prefix = "res_wt25A_vs_wtNone_RNAseq_exon_apeglm")
+
+if (shrinkage_type == 'NONE'){
+  print("No shrinkage correction applied to Log2FC")
+} else if (shrinkage_type == 'ashr'){
+  res_wtIC_vs_wtNone <- res_wtIC_vs_wtNone.shr
+  res_wt25A_vs_wtNone <- res_wt25A_vs_wtNone.shr
+} else if (shrinkage_type == 'apeglm'){
+  res_wtIC_vs_wtNone <- res_wtIC_vs_wtNone.apeglm
+  res_wt25A_vs_wtNone <- res_wt25A_vs_wtNone.apeglm
+} else {
+  print("Shrinkage_type should be one of c(NONE, ashr, apeglm)")
+  quit(10)
+}
 
 summary(res_wtIC_vs_wtNone, alpha = 0.05)
 summary(res_wt25A_vs_wtNone, alpha = 0.05)
+
 ```
 
 ### Calculate differential expression for RNaseL_KO - exons
@@ -534,13 +648,48 @@ resultsNames(dds.one.exon.ko)
 res_koIC_vs_koNone <- results(dds.one.exon.ko,list(c( "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone")))
 res_ko25A_vs_koNone <- results(dds.one.exon.ko,list(c( "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone")))
 
+res_koIC_vs_koNone.shr <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
+res_ko25A_vs_koNone.shr <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
 
-# res_koIC_vs_koNone <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
-# res_ko25A_vs_koNone <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+res_koIC_vs_koNone.apeglm <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "apeglm")
+res_ko25A_vs_koNone.apeglm <- lfcShrink(dds.one.exon.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "apeglm")
+
+# Generate MA plots
+make_MA_plots(res_koIC_vs_koNone, file_prefix = "res_koIC_vs_koNone_RNAseq_exon")
+make_MA_plots(res_ko25A_vs_koNone, file_prefix = "res_ko25A_vs_koNone_RNAseq_exon")
+make_MA_plots(res_koIC_vs_koNone.shr, file_prefix = "res_koIC_vs_koNone_RNAseq_exon_shr")
+make_MA_plots(res_ko25A_vs_koNone.shr, file_prefix = "res_ko25A_vs_koNone_RNAseq_exon_shr")
+make_MA_plots(res_koIC_vs_koNone.apeglm, file_prefix = "res_koIC_vs_koNone_RNAseq_exon_apeglm")
+make_MA_plots(res_ko25A_vs_koNone.apeglm, file_prefix = "res_ko25A_vs_koNone_RNAseq_exon_apeglm")
+
+if (shrinkage_type == 'NONE'){
+  print("No shrinkage correction applied to Log2FC")
+} else if (shrinkage_type == 'ashr'){
+  res_koIC_vs_koNone <- res_koIC_vs_koNone.shr
+  res_ko25A_vs_koNone <- res_ko25A_vs_koNone.shr
+} else if (shrinkage_type == 'apeglm'){
+  res_koIC_vs_koNone <- res_koIC_vs_koNone.apeglm
+  res_ko25A_vs_koNone <- res_ko25A_vs_koNone.apeglm
+} else {
+  print("Shrinkage_type should be one of c(NONE, ashr, apeglm)")
+  quit(10)
+}
 
 summary(res_koIC_vs_koNone, alpha = 0.05)
 summary(res_ko25A_vs_koNone, alpha = 0.05)
+
+
 ```
+### Calculate mean normalized read counts per gene - exons
+```{r}
+dir.create('./Mean_norm_counts', showWarnings = FALSE)
+mean_norm_counts.wt <- apply(counts(dds.one.exon.wt, normalized=TRUE), 1, function(x) mean(x))
+mean_norm_counts.ko <- apply(counts(dds.one.exon.ko, normalized=TRUE), 1, function(x) mean(x))
+
+write.table(x = as.data.frame(mean_norm_counts.wt), file = './Mean_norm_counts/mean_norm_counts.wt.exon.txt', sep = "\t" )
+write.table(x = as.data.frame(mean_norm_counts.ko), file = './Mean_norm_counts/mean_norm_counts.ko.exon.txt', sep = "\t" )
+```
+
 
 ### Write DE tables to file - exons
 ```{r}
@@ -578,9 +727,9 @@ metadata<-  metadata[match(colnames(all), rownames(metadata)), ]
 # Add total read counts and sample id columns to metadata
 metadata <- cbind(metadata, Read_counts =colSums(all), Sample_id = rownames(metadata))
 
-# Agnes wanted to keep all genes in the analysis, including all 0 genes
-#Remove all zero rows
-#all <- remove_all_zero_rows(all, min_total_count = 0)
+if (remove_genes_with_zero_counts){
+  all <- remove_all_zero_rows(all, min_total_count = 0)
+}
 ```
 
 ### Analysis of expression data using DESeq2 - RIBOseq
@@ -690,7 +839,7 @@ PCA plots indicate that samples separated on PC1 mostly by sequencing depth, wit
 ```{r filtering genes based on total counts of reads for RIBOseq data}
 
 # Keep genes with at least 10 reads total across samples
-keep <- rowSums(counts(dds.one.RS)) >= 0 # Agnes wanted to keep all genes
+keep <- rowSums(counts(dds.one.RS)) >= N_reads
 dds.one.RS <- dds.one.RS[keep,]
 ```
 
@@ -721,11 +870,38 @@ res_wt25A_vs_wtNone <- results(dds.one.RS.wt, list(c( "Group_gt_ind_WT25A_vs_WTN
 
 
 # Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
-# res_wtIC_vs_wtNone <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr", )
-# res_wt25A_vs_wtNone <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+res_wtIC_vs_wtNone.shr <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "ashr")
+res_wt25A_vs_wtNone.shr <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "ashr")
+
+# apeglm
+# Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
+res_wtIC_vs_wtNone.apeglm <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WTpolyIC_vs_WTNone", type = "apeglm")
+res_wt25A_vs_wtNone.apeglm <- lfcShrink(dds.one.RS.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "apeglm")
+
+# Generate MA plots
+make_MA_plots(res_wtIC_vs_wtNone, file_prefix = "res_wtIC_vs_wtNone_RIBOseq_cds")
+make_MA_plots(res_wt25A_vs_wtNone, file_prefix = "res_wt25A_vs_wtNone_RIBOseq_cds")
+make_MA_plots(res_wtIC_vs_wtNone.shr, file_prefix = "res_wtIC_vs_wtNone_RIBOseq_cds_shr")
+make_MA_plots(res_wt25A_vs_wtNone.shr, file_prefix = "res_wt25A_vs_wtNone_RIBOseq_cds_shr")
+make_MA_plots(res_wtIC_vs_wtNone.apeglm, file_prefix = "res_wtIC_vs_wtNone_RIBOseq_cds_apeglm")
+make_MA_plots(res_wt25A_vs_wtNone.apeglm, file_prefix = "res_wt25A_vs_wtNone_RIBOseq_cds_apeglm")
+
+if (shrinkage_type == 'NONE'){
+  print("No shrinkage correction applied to Log2FC")
+} else if (shrinkage_type == 'ashr'){
+  res_wtIC_vs_wtNone <- res_wtIC_vs_wtNone.shr
+  res_wt25A_vs_wtNone <- res_wt25A_vs_wtNone.shr
+} else if (shrinkage_type == 'apeglm'){
+  res_wtIC_vs_wtNone <- res_wtIC_vs_wtNone.apeglm
+  res_wt25A_vs_wtNone <- res_wt25A_vs_wtNone.apeglm
+} else {
+  print("Shrinkage_type should be one of c(NONE, ashr, apeglm)")
+  quit(10)
+}
 
 summary(res_wtIC_vs_wtNone, alpha = 0.05)
 summary(res_wt25A_vs_wtNone, alpha = 0.05)
+
 ```
 
 ### Calculate differential expression for RNaseL_KO - RIBOseq
@@ -739,14 +915,51 @@ resultsNames(dds.one.RS.ko)
 res_koIC_vs_koNone <- results(dds.one.RS.ko, list(c( "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone")))
 res_ko25A_vs_koNone <- results(dds.one.RS.ko,list(c( "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone")))
 
-# res_koIC_vs_koNone <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
-# res_ko25A_vs_koNone <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+res_koIC_vs_koNone.shr <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "ashr")
+res_ko25A_vs_koNone.shr <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "ashr")
+
+# apeglm
+# Using lfcShrink instead of results to reduce high Log2FC bias of genes with low expression
+res_koIC_vs_koNone.apeglm<- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KOpolyIC_vs_RNaseL_KONone", type = "apeglm")
+res_ko25A_vs_koNone.apeglm <- lfcShrink(dds.one.RS.ko, coef = "Group_gt_ind_RNaseL_KO25A_vs_RNaseL_KONone", type = "apeglm")
+
+# Generate MA plots
+make_MA_plots(res_koIC_vs_koNone, file_prefix = "res_koIC_vs_koNone_RIBOseq_cds")
+make_MA_plots(res_ko25A_vs_koNone, file_prefix = "res_ko25A_vs_koNone_RIBOseq_cds")
+make_MA_plots(res_koIC_vs_koNone.shr, file_prefix = "res_koIC_vs_koNone_RIBOseq_cds_shr")
+make_MA_plots(res_ko25A_vs_koNone.shr, file_prefix = "res_ko25A_vs_koNone_RIBOseq_cds_shr")
+make_MA_plots(res_koIC_vs_koNone.apeglm, file_prefix = "res_koIC_vs_koNone_RIBOseq_cds_apeglm")
+make_MA_plots(res_ko25A_vs_koNone.apeglm, file_prefix = "res_ko25A_vs_koNone_RIBOseq_cds_apeglm")
+
+if (shrinkage_type == 'NONE'){
+  print("No shrinkage correction applied to Log2FC")
+} else if (shrinkage_type == 'ashr'){
+  res_koIC_vs_koNone <- res_koIC_vs_koNone.shr
+  res_ko25A_vs_koNone <- res_ko25A_vs_koNone.shr
+} else if (shrinkage_type == 'apeglm'){
+  res_koIC_vs_koNone <- res_koIC_vs_koNone.apeglm
+  res_ko25A_vs_koNone <- res_ko25A_vs_koNone.apeglm
+} else {
+  print("Shrinkage_type should be one of c(NONE, ashr, apeglm)")
+  quit(10)
+}
 
 summary(res_koIC_vs_koNone, alpha = 0.05)
 summary(res_ko25A_vs_koNone, alpha = 0.05)
+
 ```
 
-### Write DE tables to file - exons
+### Calculate mean normalized read counts per gene
+```{r}
+dir.create('./Mean_norm_counts', showWarnings = FALSE)
+mean_norm_counts.wt <- apply(counts(dds.one.RS.wt, normalized=TRUE), 1, function(x) mean(x))
+mean_norm_counts.ko <- apply(counts(dds.one.RS.ko, normalized=TRUE), 1, function(x) mean(x))
+
+write.table(x = as.data.frame(mean_norm_counts.wt), file = './Mean_norm_counts/mean_norm_counts.wt.RS.txt', sep = "\t" )
+write.table(x = as.data.frame(mean_norm_counts.ko), file = './Mean_norm_counts/mean_norm_counts.ko.RS.txt', sep = "\t" )
+```
+
+### Write DE tables to file - RIBOseq
 ```{r}
 # Sort results by Log2FC
 res_wtIC_vs_wtNone.logfc_sorted <- sort_and_write_res_table(res_wtIC_vs_wtNone, "DE_wtIC_vs_wtNone_RS")
