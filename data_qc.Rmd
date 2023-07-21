@@ -1,0 +1,56 @@
+```{r}
+rnaseq_exon <- read.delim(file = "./DE/DE_wtIC_vs_wtNone_exon.txt", header = T, row.names = 1)
+rnaseq_cds <- read.delim(file = "./DE/DE_wtIC_vs_wtNone_cds.txt", header = T, row.names = 1)
+
+rnaseq_exon <- rnaseq_exon[rownames(rnaseq_cds),]
+
+riboseq_cds <- read.delim(file = "./DE/DE_wtIC_vs_wtNone_RS.txt", header = T, row.names = 1)
+```
+
+```{r}
+
+plot(rnaseq_cds$log2FoldChange, rnaseq_exon$log2FoldChange, col = rnaseq_exon$baseMean)
+abline(a = 0, b = 1, col = 'red')
+```
+
+
+
+```{r}
+
+plot(rnaseq_cds$log2FoldChange, riboseq_cds$log2FoldChange, col = riboseq_cds$baseMean)
+abline(a = 0, b = 1, col = 'red')
+```
+
+```{r}
+
+plot(rnaseq_exon$log2FoldChange, riboseq_cds$log2FoldChange, col = riboseq_cds$baseMean)
+abline(a = 0, b = 1, col = 'red')
+
+```
+
+### Compare RNAseq read counts based on exon or cds features
+```{r}
+cds_counts <- read.delim2("./data/cdsrna_round.csv", sep = ",", header = TRUE, row.names = 1, comment.char = c("#"))
+exon_counts <- read.delim2("./data/read_counts_exonic_RNaseL.csv", sep = ",", header = TRUE, row.names = 1, comment.char = c("#"))
+
+# Keep genes only present in cds_counts
+exon_counts <- exon_counts[rownames(cds_counts),]
+```
+
+```{r}
+for (sample in colnames(cds_counts)){
+  plot(cds_counts[,sample], exon_counts[,sample], xlim=c(0,10000), ylim=c(0,10000), main=sample)
+  abline(a = 0, b = 1, col = 'red')
+}
+```
+```{r}
+cds_bt_exon <- list()
+for (sample in colnames(cds_counts)){
+  cds_bt_exon[[sample]] <- c(rownames(cds_counts[as.numeric(cds_counts[,sample]) > (as.numeric(exon_counts[,sample])*2),]))
+}
+```
+
+
+
+
+

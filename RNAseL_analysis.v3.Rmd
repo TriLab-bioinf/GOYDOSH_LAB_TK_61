@@ -117,6 +117,52 @@ source(file = "./01_aux_rnaseq_functions.R")
 # Load enrichment functions
 source(file = "./02_Gene_enrichment_functions.R")
 
+# Function to generate MA plots
+make_MA_plots <- function(DESEQ_result, file_prefix = 'MAplot'){
+  plotMA(DESEQ_result, ylim=c(-10,10), main = file_prefix)
+  pdf(file = paste0("./Plots/",file_prefix,"_MAplot.pdf"))
+    plotMA(DESEQ_result, ylim=c(-10,10))
+  dev.off()
+}
+
+# Function to calculate mean DESeq2-normalized read counts per gene
+get_mean_norm_counts <- function(my_dds, genotype = 'no_genotype', feature_type = 'no_feature'){
+  
+  mean_norm_counts.wt.polyIC <- apply(counts(my_dds[ , my_dds$Inducer %in% c("None","polyIC")]), 1, function(x) mean(x))
+  write.table(x = as.data.frame(mean_norm_counts.wt.polyIC), 
+              file = paste0('./Mean_norm_counts/mean_norm_counts.',
+                            genotype,
+                            '.polyIC.',
+                            feature_type,
+                            '.txt'), 
+              sep = "\t" )
+  
+  mean_norm_counts.wt.25A <- apply(counts(my_dds[ , my_dds$Inducer %in% c("None","25A")]), 1, function(x) mean(x))
+  write.table(x = as.data.frame(mean_norm_counts.wt.25A), 
+              file = paste0('./Mean_norm_counts/mean_norm_counts.'
+                            ,genotype,
+                            '.25A.',
+                            feature_type,
+                            '.txt'), 
+              sep = "\t" )
+}
+
+# Define function for processing and saving result tables
+sort_and_write_res_table <- function(result_table, file_name){
+  # Sort genes by (padj)
+  result_table_sorted <- result_table[order(result_table$padj, decreasing = FALSE),]
+  # Add gene symbols
+  gene_list <- rownames(result_table_sorted)
+  symbol_list <- ensembl_to_symbol$gene_name[match(gene_list, ensembl_to_symbol$Ensembl_ID)]
+  df <-as.data.frame(cbind(result_table_sorted, Gene_name = symbol_list))
+  
+  # Write sorted table to file
+  write.table(df, file = paste0("./DE/",file_name,".txt"), 
+            sep = "\t", col.names=NA)
+  return(result_table_sorted)
+}
+
+
 ```
 
 ### Control filtering steps and shrinkage
@@ -312,13 +358,6 @@ res_wtIC_vs_wtNone.apeglm <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WTpo
 res_wt25A_vs_wtNone.apeglm <- lfcShrink(dds.one.cds.wt, coef = "Group_gt_ind_WT25A_vs_WTNone", type = "apeglm")
 
 
-# Function to generate MA plots
-make_MA_plots <- function(DESEQ_result, file_prefix = 'MAplot'){
-  plotMA(DESEQ_result, ylim=c(-10,10), main = file_prefix)
-  pdf(file = paste0("./Plots/",file_prefix,"_MAplot.pdf"))
-    plotMA(DESEQ_result, ylim=c(-10,10))
-  dev.off()
-}
 
 # Generate MA plots
 make_MA_plots(res_wtIC_vs_wtNone, file_prefix = "res_wtIC_vs_wtNone_RNAseq_cds")
@@ -393,29 +432,14 @@ summary(res_ko25A_vs_koNone, alpha = 0.05)
 ### Calculate mean normalized read counts per gene - CDS
 ```{r}
 dir.create('./Mean_norm_counts', showWarnings = FALSE)
-mean_norm_counts.wt <- apply(counts(dds.one.cds.wt, normalized=TRUE), 1, function(x) mean(x))
-mean_norm_counts.ko <- apply(counts(dds.one.cds.ko, normalized=TRUE), 1, function(x) mean(x))
 
-write.table(x = as.data.frame(mean_norm_counts.wt), file = './Mean_norm_counts/mean_norm_counts.wt.cds.txt', sep = "\t" )
-write.table(x = as.data.frame(mean_norm_counts.ko), file = './Mean_norm_counts/mean_norm_counts.ko.cds.txt', sep = "\t" )
+get_mean_norm_counts(dds.one.cds.wt, genotype = 'wt', feature_type = 'cds')
+get_mean_norm_counts(dds.one.cds.ko, genotype = 'ko', feature_type = 'cds')
+
 ```
 
 ### Write DE tables to file - CDS
 ```{r}
-# Define function for processing and saving result tables
-sort_and_write_res_table <- function(result_table, file_name){
-  # Sort genes by (padj)
-  result_table_sorted <- result_table[order(result_table$padj, decreasing = FALSE),]
-  # Add gene symbols
-  gene_list <- rownames(result_table_sorted)
-  symbol_list <- ensembl_to_symbol$gene_name[match(gene_list, ensembl_to_symbol$Ensembl_ID)]
-  df <-as.data.frame(cbind(result_table_sorted, Gene_name = symbol_list))
-  
-  # Write sorted table to file
-  write.table(df, file = paste0("./DE/",file_name,".txt"), 
-            sep = "\t", col.names=NA)
-  return(result_table_sorted)
-}
 
 # Sort results by Log2FC
 res_wtIC_vs_wtNone.logfc_sorted <- sort_and_write_res_table(res_wtIC_vs_wtNone, "DE_wtIC_vs_wtNone_cds")
@@ -683,11 +707,10 @@ summary(res_ko25A_vs_koNone, alpha = 0.05)
 ### Calculate mean normalized read counts per gene - exons
 ```{r}
 dir.create('./Mean_norm_counts', showWarnings = FALSE)
-mean_norm_counts.wt <- apply(counts(dds.one.exon.wt, normalized=TRUE), 1, function(x) mean(x))
-mean_norm_counts.ko <- apply(counts(dds.one.exon.ko, normalized=TRUE), 1, function(x) mean(x))
 
-write.table(x = as.data.frame(mean_norm_counts.wt), file = './Mean_norm_counts/mean_norm_counts.wt.exon.txt', sep = "\t" )
-write.table(x = as.data.frame(mean_norm_counts.ko), file = './Mean_norm_counts/mean_norm_counts.ko.exon.txt', sep = "\t" )
+get_mean_norm_counts(dds.one.cds.wt, genotype = 'wt', feature_type = 'exon')
+get_mean_norm_counts(dds.one.cds.ko, genotype = 'ko', feature_type = 'exon')
+
 ```
 
 
@@ -952,11 +975,10 @@ summary(res_ko25A_vs_koNone, alpha = 0.05)
 ### Calculate mean normalized read counts per gene
 ```{r}
 dir.create('./Mean_norm_counts', showWarnings = FALSE)
-mean_norm_counts.wt <- apply(counts(dds.one.RS.wt, normalized=TRUE), 1, function(x) mean(x))
-mean_norm_counts.ko <- apply(counts(dds.one.RS.ko, normalized=TRUE), 1, function(x) mean(x))
 
-write.table(x = as.data.frame(mean_norm_counts.wt), file = './Mean_norm_counts/mean_norm_counts.wt.RS.txt', sep = "\t" )
-write.table(x = as.data.frame(mean_norm_counts.ko), file = './Mean_norm_counts/mean_norm_counts.ko.RS.txt', sep = "\t" )
+get_mean_norm_counts(dds.one.cds.wt, genotype = 'wt', feature_type = 'RS')
+get_mean_norm_counts(dds.one.cds.ko, genotype = 'ko', feature_type = 'RS')
+
 ```
 
 ### Write DE tables to file - RIBOseq
