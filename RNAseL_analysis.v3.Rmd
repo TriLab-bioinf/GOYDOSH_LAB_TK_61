@@ -708,8 +708,8 @@ summary(res_ko25A_vs_koNone, alpha = 0.05)
 ```{r}
 dir.create('./Mean_norm_counts', showWarnings = FALSE)
 
-get_mean_norm_counts(dds.one.cds.wt, genotype = 'wt', feature_type = 'exon')
-get_mean_norm_counts(dds.one.cds.ko, genotype = 'ko', feature_type = 'exon')
+get_mean_norm_counts(dds.one.exon.wt, genotype = 'wt', feature_type = 'exon')
+get_mean_norm_counts(dds.one.exon.ko, genotype = 'ko', feature_type = 'exon')
 
 ```
 
@@ -976,8 +976,8 @@ summary(res_ko25A_vs_koNone, alpha = 0.05)
 ```{r}
 dir.create('./Mean_norm_counts', showWarnings = FALSE)
 
-get_mean_norm_counts(dds.one.cds.wt, genotype = 'wt', feature_type = 'RS')
-get_mean_norm_counts(dds.one.cds.ko, genotype = 'ko', feature_type = 'RS')
+get_mean_norm_counts(dds.one.RS.wt, genotype = 'wt', feature_type = 'RS')
+get_mean_norm_counts(dds.one.RS.ko, genotype = 'ko', feature_type = 'RS')
 
 ```
 

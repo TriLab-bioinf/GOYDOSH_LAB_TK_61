@@ -1,5 +1,4 @@
 .RData
-.RData
 .DS_Store
 .Rhistory
 .Rproj.user/
@@ -10,4 +9,5 @@ TE_agnes_code.R
 TK_61.Rproj
 cds_vs_exonic.plot.pdf
 data/
-
+*.txt
+*.pptx
